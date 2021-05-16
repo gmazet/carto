@@ -37,18 +37,22 @@ try:
     evtlon=float(sys.argv[2])
     evtdep=float(sys.argv[3])
     evtmag=float(sys.argv[4])
-    dist=float(sys.argv[5]) #km
+    evtcode=sys.argv[5]
+    evtname=sys.argv[6]
+    dist=float(sys.argv[7]) #km
 except:
     print("error")
     exit()
 
+stafile="../rms/resif.sta"
+
 #dist,zoomlevel=55.0,9
 #dist,zoomlevel=15.0,11
-dist,zoomlevel=30.0,10
+dist,zoomlevel=45.0,9
 
 circles=[10.0,20.0,30.0,40.0,50.0]
 
-maintitle="ML%3.1f" % (evtmag)
+maintitle="%s" % (evtname)
 
 deg2km=111.19
 km2deg=1.0/deg2km
@@ -66,7 +70,7 @@ tiler = OSM()
 PC=ccrs.PlateCarree()
 MERC=ccrs.Mercator()
 
-mycrs=ccrs.Mercator()
+#####mycrs=ccrs.Mercator()
 smallmap=ccrs.TransverseMercator()
 
 # -----------------------------
@@ -101,7 +105,7 @@ def blank_axes(ax):
 
 
 #end blank_axes
-fig = plt.figure(figsize=(9,6))
+fig = plt.figure(figsize=(8,5))
 
 # ------------------------------- Surrounding frame ------------------------------
 # set up frame full height, full width of figure, this must be called first
@@ -135,11 +139,6 @@ ax.set_extent((lonmin, lonmax, latmin, latmax), crs=PC)
 ax.gridlines(draw_labels=True)
 
 #----------------
-#----------------
-#----------------
-#----------------
-#----------------
-#----------------
 
 #land polygons, including major islands, use cartopy default color
 ax.add_image(tiler, zoomlevel)
@@ -151,11 +150,20 @@ ax.add_image(tiler, zoomlevel)
 ###ax.add_feature(BORDERS2_10m, edgecolor='grey')
 
 
-"""
-ax.scatter([point.x for point in Rg], [point.y for point in Rg], transform=MERC, s=9.1, c='k')
-t0 = ax.text([point.x for point in Rg], [point.y for point in Rg], [r.attributes['NAMEASCII'] for r in R.records()] , transform=MERC, horizontalalignment='left', verticalalignment='bottom', fontsize=20)
+f=open(stafile,'r')
+slat,slon,scode=[],[],[]
+for l in f:
+    s=l.split("|")
+    try:
+        scode.append(s[1])
+        slat.append(float(s[2]))
+        slon.append(float(s[3]))
+    except:
+        pass
+f.close()
 
-"""
+ax.scatter([x for x in slon], [y for y in slat], transform=PC, s=40, c='b', marker="^")
+#t0 = ax.text([x for x in slon], [y for y in slat], [s for s in scode] , transform=MERC, horizontalalignment='left', verticalalignment='bottom', fontsize=20)
 
 
 # stock image is good enough for example, but OCEAN_10m could be used, but very slow
@@ -202,7 +210,7 @@ for r in circles:
     r=r*1000.0 # in meters
     circle_points=Geodesic().circle(lon=evtlon, lat=evtlat, radius=r, n_samples=n_points, endpoint=False)
     geom = shapely.geometry.Polygon(circle_points)
-    ax.add_geometries((geom,), crs=PC, facecolor='none', edgecolor='k', linewidth=1.0, alpha=0.5, ls='-')
+    ax.add_geometries((geom,), crs=PC, facecolor='none', edgecolor='k', linewidth=0.8, alpha=0.5, ls='-')
 
 
 # ---------------------------------Locating Map ------------------------
@@ -298,6 +306,6 @@ names.append('state boundary')
 #ax5.legend(handles, names)
 print ("Save figure...")
 ax5.set_title('Legend',loc='left')
-plt.savefig("./merc.png", dpi=200)
+plt.savefig("./%s.png" % evtcode, dpi=150)
 #print ("show...")
 #plt.show()
