@@ -43,15 +43,13 @@ except:
     print("error")
     exit()
 
+# -------------------------------
 stafile="../rms/resif.sta"
 
-#dist,zoomlevel=55.0,9
-#dist,zoomlevel=15.0,11
-#dist,zoomlevel=25.0,10 # TEST
-dist,zoomlevel=45.0,9
-#zoomlevel=9
+dist,zoomlevel=50.0,9
 
-circles=[10.0,20.0,30.0,40.0,50.0]
+circles=[10.0,20.0,30.0,40.0,50.0] #km
+# -------------------------------
 
 maintitle="%s %s" % (evtcode,evtname)
 
@@ -59,10 +57,9 @@ deg2km=111.19
 km2deg=1.0/deg2km
 distdeg=dist*km2deg
 
-
-latmin,latmax=evtlat+distdeg,evtlat-distdeg
+latmin,latmax=evtlat-distdeg,evtlat+distdeg
 #lonmin,lonmax=evtlon+distdeg,evtlon-distdeg
-lonmin,lonmax=evtlon+distdeg/math.cos(evtlat/180.0*math.pi),evtlon-distdeg/math.cos(evtlat/180.0*math.pi)
+lonmin,lonmax=evtlon-distdeg/math.cos(evtlat/180.0*math.pi),evtlon+distdeg/math.cos(evtlat/180.0*math.pi)
 
 print ("----------------------------------------------")
 print ("lat/lon, min/max:",latmin,latmax,lonmin,lonmax)
@@ -73,8 +70,8 @@ print ("")
 #tiler = Stamen('terrain-background')
 tiler = QuadtreeTiles() # TEST
 tiler = Stamen('terrain')
-tiler = GoogleTiles() # TEST
 tiler = OSM() # TEST
+tiler = GoogleTiles() # TEST
 
 PC=ccrs.PlateCarree()
 MERC=ccrs.Mercator()
@@ -132,7 +129,6 @@ gl=ax.gridlines(draw_labels=True)
 gl.xlabel_style = {'size': 8, 'color': 'gray'}
 gl.ylabel_style = {'size': 8, 'color': 'gray'}
 
-#----------------
 
 #land polygons, including major islands, use cartopy default color
 ax.add_image(tiler, zoomlevel, interpolation='spline36', regrid_shape=2000)
@@ -148,6 +144,8 @@ f=open(stafile,'r')
 slat,slon,scode=[],[],[]
 for l in f:
     s=l.split("|")
+    if (s[0].startswith('#')):
+        continue
     try:
         scode.append(s[1])
         slat.append(float(s[2]))
@@ -157,11 +155,16 @@ for l in f:
 f.close()
 
 ax.scatter([x for x in slon], [y for y in slat], transform=PC, s=40, c='b', marker="^")
-#t0 = ax.text([x for x in slon], [y for y in slat], [s for s in scode] , transform=MERC, horizontalalignment='left', verticalalignment='bottom', fontsize=20)
+for i in range(0,len(slat)):
+    if ( (slon[i]>lonmax) | (slon[i]<lonmin) | (slat[i]>latmax) | (slat[i]<latmin) ):
+        continue
+    print ("Plot stations:",i, slon[i], slat[i], scode[i])
+    ax.text(slon[i], slat[i], scode[i] , transform=PC, horizontalalignment='left', verticalalignment='bottom', fontsize=8)
 
-
-# stock image is good enough for example, but OCEAN_10m could be used, but very slow
-#       ax.add_feature(OCEAN_10m)
+#----------------
+#plt.show()
+#sys.exit()
+#----------------
 
 
 #ax.gridlines(draw_labels=True, xlocs=[150, 152, 154, 155])
