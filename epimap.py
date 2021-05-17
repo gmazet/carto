@@ -1,36 +1,35 @@
 ﻿# all imports should go here
 
-import pandas as pd
+#import pandas as pd
 import sys
-import os
-import subprocess
+#import os
+#import subprocess
 import datetime
-import platform
-import datetime
+#import platform
 import math
+#import matplotlib
+#matplotlib.use('Cairo')
 
 import matplotlib.pyplot as plt
 #import seaborn as sb
 
 import cartopy
 import cartopy.crs as ccrs
-from cartopy.io.img_tiles import OSM, Stamen, MapboxTiles
+from cartopy.io.img_tiles import *
 import cartopy.feature as cfeature
 from cartopy.io import shapereader
-from cartopy.io.img_tiles import StamenTerrain
-from cartopy.io.img_tiles import GoogleTiles
-from owslib.wmts import WebMapTileService
-import shapefile
+#from owslib.wmts import WebMapTileService
+#import shapefile
 from cartopy.geodesic import Geodesic
 import shapely
 
-from matplotlib.path import Path
-import matplotlib.patheffects as PathEffects
+#from matplotlib.path import Path
+#import matplotlib.patheffects as PathEffects
 from matplotlib import patheffects
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 
-import numpy as np
+#import numpy as np
 
 try:
     evtlat=float(sys.argv[1])
@@ -48,11 +47,13 @@ stafile="../rms/resif.sta"
 
 #dist,zoomlevel=55.0,9
 #dist,zoomlevel=15.0,11
+#dist,zoomlevel=25.0,10 # TEST
 dist,zoomlevel=45.0,9
+#zoomlevel=9
 
 circles=[10.0,20.0,30.0,40.0,50.0]
 
-maintitle="%s" % (evtname)
+maintitle="%s %s" % (evtcode,evtname)
 
 deg2km=111.19
 km2deg=1.0/deg2km
@@ -62,16 +63,25 @@ distdeg=dist*km2deg
 latmin,latmax=evtlat+distdeg,evtlat-distdeg
 #lonmin,lonmax=evtlon+distdeg,evtlon-distdeg
 lonmin,lonmax=evtlon+distdeg/math.cos(evtlat/180.0*math.pi),evtlon-distdeg/math.cos(evtlat/180.0*math.pi)
-print (latmin,latmax,lonmin,lonmax)
+
+print ("----------------------------------------------")
+print ("lat/lon, min/max:",latmin,latmax,lonmin,lonmax)
+print ("zoomlevel=",zoomlevel)
+print ("dist=",dist)
+print ("")
 
 #tiler = Stamen('terrain-background')
-tiler = OSM()
+tiler = QuadtreeTiles() # TEST
+tiler = Stamen('terrain')
+tiler = GoogleTiles() # TEST
+tiler = OSM() # TEST
 
 PC=ccrs.PlateCarree()
 MERC=ccrs.Mercator()
 
 #####mycrs=ccrs.Mercator()
-smallmap=ccrs.TransverseMercator()
+#smallmap=ccrs.TransverseMercator()
+smallmap=MERC
 
 # -----------------------------
 
@@ -85,27 +95,8 @@ ROADS_10m = shapereader.natural_earth(category='cultural', name='roads', resolut
 ROADS_10m = cartopy.feature.NaturalEarthFeature('cultural', 'roads', '10m')
 
 
-def blank_axes(ax):
-    """
-    blank_axes:  blank the extraneous spines and tick marks for an axes
-
-    Input:
-    ax:  a matplotlib Axes object
-
-    Output: None
-    """
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.yaxis.set_ticks_position('none')
-    ax.xaxis.set_ticks_position('none')
-    ax.tick_params(labelbottom='off', labeltop='off', labelleft='off', labelright='off' ,\
-                    bottom='off', top='off', left='off', right='off' )
-
-
-#end blank_axes
-fig = plt.figure(figsize=(8,5))
+#fig = plt.figure(figsize=(8,5))
+fig = plt.figure()
 
 # ------------------------------- Surrounding frame ------------------------------
 # set up frame full height, full width of figure, this must be called first
@@ -117,7 +108,8 @@ rect = [left,bottom,width,height]
 ax3 = plt.axes(rect)
 
 # turn on the spines we want, ie just the surrounding frame
-blank_axes(ax3)
+ax3.axis('off')
+ax3.set_visible(False)
 ax3.spines['right'].set_visible(True)
 ax3.spines['top'].set_visible(True)
 ax3.spines['bottom'].set_visible(True)
@@ -136,12 +128,14 @@ rect = [left,bottom,width,height]
 
 ax = plt.axes(rect, projection=MERC)
 ax.set_extent((lonmin, lonmax, latmin, latmax), crs=PC)
-ax.gridlines(draw_labels=True)
+gl=ax.gridlines(draw_labels=True)
+gl.xlabel_style = {'size': 8, 'color': 'gray'}
+gl.ylabel_style = {'size': 8, 'color': 'gray'}
 
 #----------------
 
 #land polygons, including major islands, use cartopy default color
-ax.add_image(tiler, zoomlevel)
+ax.add_image(tiler, zoomlevel, interpolation='spline36', regrid_shape=2000)
 #ax.coastlines(resolution='10m', zorder=2)
 #ax.add_feature(RIVERS_10m)
 #ax.add_feature(LAND_10m)
@@ -171,7 +165,7 @@ ax.scatter([x for x in slon], [y for y in slat], transform=PC, s=40, c='b', mark
 
 
 #ax.gridlines(draw_labels=True, xlocs=[150, 152, 154, 155])
-ax.gridlines(draw_labels=True)
+#ax.gridlines(draw_labels=True)
 #single-line drainages, including lake centerlines.
 lon0, lon1, lat0, lat1 = ax.get_extent()
 
@@ -217,7 +211,7 @@ for r in circles:
 #
 # set up index map 20% height, left 16% of figure
 left = 0
-bottom = 0.10
+bottom = 0.05
 width = 0.16
 height = 0.22
 rect = [left,bottom,width,height]
@@ -248,8 +242,8 @@ width = 0.8
 height = 0.04
 rect = [left,bottom,width,height]
 ax6 = plt.axes(rect)
-ax6.text(0.5, 0.0,maintitle, ha='center', fontsize=16)
-blank_axes(ax6)
+ax6.text(0.5, 0.0,maintitle, ha='center', fontsize=13)
+ax6.axis('off')
 # ---------------------------------North Arrow  ----------------------------
 #
 left = 0
@@ -261,8 +255,8 @@ rect = [left,bottom,width,height]
 ax4 = plt.axes(rect)
 
 # need a font that support enough Unicode to draw up arrow. need space after Unicode to allow wide char to be drawm?
-ax4.text(0.5, 0.0,u'\u25B2 \nN ', ha='center', fontsize=30, family='Arial', rotation = 0)
-blank_axes(ax4)
+ax4.text(0.5, 0.0,u'\u25B2 \nN ', ha='center', fontsize=15, family='Arial', rotation = 0)
+ax4.axis('off')
 # ------------------------------------  Legend -------------------------------------
 
 # legends can be quite long, so set near top of map (0.4 - bottom + 0.5 height = 0.9 - near top)
@@ -273,7 +267,7 @@ height = 0.3
 rect = [left,bottom,width,height]
 rect = [left,bottom,width,height]
 ax5 = plt.axes(rect)
-blank_axes(ax5)
+ax5.axis('off')
 # create an array of color patches and associated names for drawing in a legend
 # colors are the predefined colors for cartopy features (only for example, Cartopy names are unusual)
 colors = sorted(cartopy.feature.COLORS.keys())
@@ -306,6 +300,7 @@ names.append('state boundary')
 #ax5.legend(handles, names)
 print ("Save figure...")
 ax5.set_title('Legend',loc='left')
-plt.savefig("./%s.png" % evtcode, dpi=150)
+plt.savefig("./%s.png" % evtcode, dpi=120)
+#plt.savefig("./%f.png" % dist, dpi=120)
 #print ("show...")
 #plt.show()
