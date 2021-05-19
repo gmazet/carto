@@ -1,6 +1,6 @@
 ﻿# all imports should go here
 
-#import pandas as pd
+import pandas as pd
 import sys
 #import os
 #import subprocess
@@ -38,15 +38,17 @@ try:
     evtmag=float(sys.argv[4])
     evtcode=sys.argv[5]
     evtname=sys.argv[6]
-    dist=float(sys.argv[7]) #km
+    dist=float(sys.argv[7]) #in km
+    zoomlevel=int(sys.argv[8]) #9, 10 or 11
 except:
     print("error")
     exit()
 
 # -------------------------------
 stafile="../rms/resif.sta"
+sitefile="./sites.csv"
 
-dist,zoomlevel=50.0,9
+#dist,zoomlevel=50.0,9
 
 circles=[10.0,20.0,30.0,40.0,50.0] #km
 # -------------------------------
@@ -71,7 +73,7 @@ print ("")
 tiler = QuadtreeTiles() # TEST
 tiler = Stamen('terrain')
 tiler = OSM() # TEST
-tiler = GoogleTiles() # TEST
+tiler = GoogleTiles(style='street') # TEST
 
 PC=ccrs.PlateCarree()
 MERC=ccrs.Mercator()
@@ -112,8 +114,7 @@ ax3.spines['top'].set_visible(True)
 ax3.spines['bottom'].set_visible(True)
 ax3.spines['left'].set_visible(True)
 
-ax3.text(0.01,0.01,'© Don Cameron, 2017: net-analysis.com. '+
-         'Map generated at '+datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), fontsize=8)
+#ax3.text(0.01,0.01,'© Don Cameron, 2017: net-analysis.com. '+ 'Map generated at '+datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), fontsize=8)
 # ---------------------------------  Main Map -------------------------------------
 #
 # set up main map almost full height (allow room for title), right 80% of figure
@@ -125,41 +126,54 @@ rect = [left,bottom,width,height]
 
 ax = plt.axes(rect, projection=MERC)
 ax.set_extent((lonmin, lonmax, latmin, latmax), crs=PC)
-gl=ax.gridlines(draw_labels=True)
-gl.xlabel_style = {'size': 8, 'color': 'gray'}
-gl.ylabel_style = {'size': 8, 'color': 'gray'}
+gl=ax.gridlines(draw_labels=True, linewidth=0.6, color='lightgrey', zorder=2)
+gl.xlabel_style = {'size': 8, 'color': 'grey'}
+gl.ylabel_style = {'size': 8, 'color': 'grey'}
 
 
 #land polygons, including major islands, use cartopy default color
-ax.add_image(tiler, zoomlevel, interpolation='spline36', regrid_shape=2000)
-#ax.coastlines(resolution='10m', zorder=2)
-#ax.add_feature(RIVERS_10m)
-#ax.add_feature(LAND_10m)
-#ax.stock_img()
-#ax.add_feature(RIVERS_10m)
+ax.add_image(tiler, zoomlevel, interpolation='spline36', regrid_shape=2000, zorder=1)
+###ax.coastlines(resolution='10m', zorder=2)
+###ax.add_feature(RIVERS_10m)
+###ax.add_feature(LAND_10m)
+###ax.stock_img()
+###ax.add_feature(RIVERS_10m)
 ###ax.add_feature(BORDERS2_10m, edgecolor='grey')
 
 
-f=open(stafile,'r')
-slat,slon,scode=[],[],[]
-for l in f:
-    s=l.split("|")
-    if (s[0].startswith('#')):
-        continue
-    try:
-        scode.append(s[1])
-        slat.append(float(s[2]))
-        slon.append(float(s[3]))
-    except:
-        pass
-f.close()
+# ---------------------------
+# Plot stations
+# ---------------------------
+#headers = ['Station', 'Latitude', 'Longitude', 'SiteName']
+#dtypes = {'Station': 'str', 'Latitude': 'float', 'Longitude': 'float', 'SiteName': 'str'}
+#dfsta=pd.read_csv(stafile, delimiter="|", header=0, names=headers, dtype=dtypes)
+dfsta=pd.read_csv(stafile, delimiter="|", header=0)
+print (dfsta)
 
-ax.scatter([x for x in slon], [y for y in slat], transform=PC, s=40, c='b', marker="^")
-for i in range(0,len(slat)):
-    if ( (slon[i]>lonmax) | (slon[i]<lonmin) | (slat[i]>latmax) | (slat[i]<latmin) ):
+ax.scatter([x for x in dfsta.Longitude], [y for y in dfsta.Latitude], transform=PC, s=40, c='b', marker="^", label='Stations Résif', zorder=4)
+for i in range(0,len(dfsta.Latitude)):
+    if ( (dfsta.Longitude[i]>lonmax) | (dfsta.Longitude[i]<lonmin) | (dfsta.Latitude[i]>latmax) | (dfsta.Latitude[i]<latmin) ):
         continue
-    print ("Plot stations:",i, slon[i], slat[i], scode[i])
-    ax.text(slon[i], slat[i], scode[i] , transform=PC, horizontalalignment='left', verticalalignment='bottom', fontsize=8)
+    if (dfsta.Station[i] in ['OGS2','OGS3']):
+        continue
+    print ("Plot station:",i, dfsta.Longitude[i], dfsta.Latitude[i], dfsta.Station[i])
+    ax.text(dfsta.Longitude[i], dfsta.Latitude[i], dfsta.Station[i] , transform=PC, horizontalalignment='left', verticalalignment='bottom', fontsize=7, zorder=5)
+
+
+# ---------------------------
+# Plot sites
+# ---------------------------
+dfsite=pd.read_csv(sitefile, delimiter=",", header=0)
+print (dfsite)
+for i in range(0,len(dfsite.Lat)):
+    if ( (dfsite.Lon[i]>lonmax) | (dfsite.Lon[i]<lonmin) | (dfsite.Lat[i]>latmax) | (dfsite.Lat[i]<latmin) ):
+        continue
+    print ("Plot site:",i, dfsite.Lon[i], dfsite.Lat[i], dfsite.Site[i])
+    ax.text(dfsite.Lon[i]+0.015, dfsite.Lat[i], dfsite.Site[i] , transform=PC, horizontalalignment='left', verticalalignment='bottom', fontsize=7, color='r', 
+            bbox=dict(boxstyle="round", ec=(1., 0.5, 0.5), fc=(1., 0.8, 0.8),),
+            zorder=10
+            )
+ax.scatter([x for x in dfsite.Lon], [y for y in dfsite.Lat], transform=PC, s=30, c='r', marker="D", zorder=11)
 
 #----------------
 #plt.show()
@@ -167,8 +181,6 @@ for i in range(0,len(slat)):
 #----------------
 
 
-#ax.gridlines(draw_labels=True, xlocs=[150, 152, 154, 155])
-#ax.gridlines(draw_labels=True)
 #single-line drainages, including lake centerlines.
 lon0, lon1, lat0, lat1 = ax.get_extent()
 
@@ -207,7 +219,7 @@ for r in circles:
     r=r*1000.0 # in meters
     circle_points=Geodesic().circle(lon=evtlon, lat=evtlat, radius=r, n_samples=n_points, endpoint=False)
     geom = shapely.geometry.Polygon(circle_points)
-    ax.add_geometries((geom,), crs=PC, facecolor='none', edgecolor='k', linewidth=0.8, alpha=0.5, ls='-')
+    ax.add_geometries((geom,), crs=PC, facecolor='none', edgecolor='k', linewidth=0.5, alpha=0.5, ls='-', zorder=3)
 
 
 # ---------------------------------Locating Map ------------------------
@@ -287,12 +299,10 @@ for c in colors:
     names.append(c)
 #end for
 # do some example lines with colors
-river = mlines.Line2D([], [], color=cfeature.COLORS['water'], marker='',
-                          markersize=15, label='river')
-coast = mlines.Line2D([], [], color='black', marker='',
-                          markersize=15, label='coast')
-bdy  = mlines.Line2D([], [], color='grey', marker='',
-                  markersize=15, label='state boundary')
+river = mlines.Line2D([], [], color=cfeature.COLORS['water'], marker='', markersize=15, label='river')
+coast = mlines.Line2D([], [], color='black', marker='', markersize=15, label='coast')
+bdy  = mlines.Line2D([], [], color='grey', marker='', markersize=15, label='state boundary')
+
 handles.append(river)
 handles.append(coast)
 handles.append(bdy)
