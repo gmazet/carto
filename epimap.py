@@ -2,16 +2,10 @@
 
 import pandas as pd
 import sys
-#import os
-#import subprocess
 import datetime
-#import platform
 import math
-#import matplotlib
-#matplotlib.use('Cairo')
 
 import matplotlib.pyplot as plt
-#import seaborn as sb
 
 import cartopy
 import cartopy.crs as ccrs
@@ -19,17 +13,12 @@ from cartopy.io.img_tiles import *
 import cartopy.feature as cfeature
 from cartopy.io import shapereader
 #from owslib.wmts import WebMapTileService
-#import shapefile
 from cartopy.geodesic import Geodesic
 import shapely
 
-#from matplotlib.path import Path
-#import matplotlib.patheffects as PathEffects
 from matplotlib import patheffects
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
-
-#import numpy as np
 
 try:
     evtlat=float(sys.argv[1])
@@ -93,6 +82,11 @@ RIVERS_10m = cartopy.feature.NaturalEarthFeature('physical', 'rivers_lake_center
 ROADS_10m = shapereader.natural_earth(category='cultural', name='roads', resolution='10m')
 ROADS_10m = cartopy.feature.NaturalEarthFeature('cultural', 'roads', '10m')
 
+# For legends
+# handles is a list of patch handles
+# names is the list of corresponding labels to appear in the legend
+handles = []
+names = []
 
 #fig = plt.figure(figsize=(8,5))
 fig = plt.figure()
@@ -118,9 +112,9 @@ ax3.spines['left'].set_visible(True)
 # ---------------------------------  Main Map -------------------------------------
 #
 # set up main map almost full height (allow room for title), right 80% of figure
-left = 0.23
+left = 0.28
 bottom = 0.05
-width = 0.70
+width = 0.65
 height = 0.85
 rect = [left,bottom,width,height]
 
@@ -148,9 +142,11 @@ ax.add_image(tiler, zoomlevel, interpolation='spline36', regrid_shape=2000, zord
 #dtypes = {'Station': 'str', 'Latitude': 'float', 'Longitude': 'float', 'SiteName': 'str'}
 #dfsta=pd.read_csv(stafile, delimiter="|", header=0, names=headers, dtype=dtypes)
 dfsta=pd.read_csv(stafile, delimiter="|", header=0)
-print (dfsta)
+#print (dfsta)
 
-ax.scatter([x for x in dfsta.Longitude], [y for y in dfsta.Latitude], transform=PC, s=40, c='b', marker="^", label='Stations Résif', zorder=4)
+h1=ax.scatter([x for x in dfsta.Longitude], [y for y in dfsta.Latitude], transform=PC, s=40, c='b', marker="^", label='Stations Résif', zorder=4)
+handles.append(h1)
+names.append('Stations Résif')
 for i in range(0,len(dfsta.Latitude)):
     if ( (dfsta.Longitude[i]>lonmax) | (dfsta.Longitude[i]<lonmin) | (dfsta.Latitude[i]>latmax) | (dfsta.Latitude[i]<latmin) ):
         continue
@@ -165,6 +161,7 @@ for i in range(0,len(dfsta.Latitude)):
 # ---------------------------
 dfsite=pd.read_csv(sitefile, delimiter=",", header=0)
 print (dfsite)
+
 for i in range(0,len(dfsite.Lat)):
     if ( (dfsite.Lon[i]>lonmax) | (dfsite.Lon[i]<lonmin) | (dfsite.Lat[i]>latmax) | (dfsite.Lat[i]<latmin) ):
         continue
@@ -173,7 +170,9 @@ for i in range(0,len(dfsite.Lat)):
             bbox=dict(boxstyle="round", ec=(1., 0.5, 0.5), fc=(1., 0.8, 0.8),),
             zorder=10
             )
-ax.scatter([x for x in dfsite.Lon], [y for y in dfsite.Lat], transform=PC, s=30, c='r', marker="D", zorder=11)
+h2=ax.scatter([x for x in dfsite.Lon], [y for y in dfsite.Lat], transform=PC, s=30, c='r', marker="D", label="Sites Métropolitains", zorder=11)
+handles.append(h2)
+names.append('Sites\nmétropolitains')
 
 #----------------
 #plt.show()
@@ -208,18 +207,20 @@ bar_color = ['black', 'red']
     #bar_lat0 = end_lat
 
 # highlight text with white background
-buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
+#buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
 # Plot the scalebar label
-units = 'km'
+#units = 'km'
 #TODO make transform match ax projection
 #t0 = ax.text(text_lon0, text_lat0, str(bar_ticks*bar_tickmark/1000) + ' ' + units, transform=MERC, horizontalalignment='left', verticalalignment='bottom', path_effects=buffer, zorder=2)
 
-n_points=2000
+n_points=200
 for r in circles:
     r=r*1000.0 # in meters
     circle_points=Geodesic().circle(lon=evtlon, lat=evtlat, radius=r, n_samples=n_points, endpoint=False)
     geom = shapely.geometry.Polygon(circle_points)
     ax.add_geometries((geom,), crs=PC, facecolor='none', edgecolor='k', linewidth=0.5, alpha=0.5, ls='-', zorder=3)
+    if (r==10000):
+        ax.text(evtlon, evtlat-0.1, "10 km", transform=PC, horizontalalignment='center', verticalalignment='bottom', fontsize=7, color='k',)
 
 
 # ---------------------------------Locating Map ------------------------
@@ -227,8 +228,8 @@ for r in circles:
 # set up index map 20% height, left 16% of figure
 left = 0
 bottom = 0.05
-width = 0.16
-height = 0.22
+width = 0.20
+height = 0.25
 rect = [left,bottom,width,height]
 
 ax2 = plt.axes(rect, projection=smallmap)
@@ -257,7 +258,7 @@ width = 0.8
 height = 0.04
 rect = [left,bottom,width,height]
 ax6 = plt.axes(rect)
-ax6.text(0.5, 0.0,maintitle, ha='center', fontsize=13)
+ax6.text(0.5, 0.0,maintitle, ha='center', fontsize=11)
 ax6.axis('off')
 # ---------------------------------North Arrow  ----------------------------
 #
@@ -275,44 +276,43 @@ ax4.axis('off')
 # ------------------------------------  Legend -------------------------------------
 
 # legends can be quite long, so set near top of map (0.4 - bottom + 0.5 height = 0.9 - near top)
-left = 0
+left = 0.05
 bottom = 0.6
 width = 0.16
 height = 0.3
 rect = [left,bottom,width,height]
-rect = [left,bottom,width,height]
 ax5 = plt.axes(rect)
 ax5.axis('off')
+
 # create an array of color patches and associated names for drawing in a legend
 # colors are the predefined colors for cartopy features (only for example, Cartopy names are unusual)
-colors = sorted(cartopy.feature.COLORS.keys())
+#colors = sorted(cartopy.feature.COLORS.keys())
 
-# handles is a list of patch handles
-handles = []
-# names is the list of corresponding labels to appear in the legend
-names = []
+
 
 # for each cartopy defined color, draw a patch, append handle to list, and append color name to names list
-for c in colors:
-    patch = mpatches.Patch(color=cfeature.COLORS[c], label=c)
-    handles.append(patch)
-    names.append(c)
+#for c in colors:
+    #patch = mpatches.Patch(color=cfeature.COLORS[c], label=c)
+    #handles.append(patch)
+    #names.append(c)
 #end for
 # do some example lines with colors
-river = mlines.Line2D([], [], color=cfeature.COLORS['water'], marker='', markersize=15, label='river')
-coast = mlines.Line2D([], [], color='black', marker='', markersize=15, label='coast')
-bdy  = mlines.Line2D([], [], color='grey', marker='', markersize=15, label='state boundary')
+#river = mlines.Line2D([], [], color=cfeature.COLORS['water'], marker='', markersize=15, label='river')
+#coast = mlines.Line2D([], [], color='black', marker='', markersize=15, label='coast')
+#bdy  = mlines.Line2D([], [], color='grey', marker='', markersize=15, label='state boundary')
 
-handles.append(river)
-handles.append(coast)
-handles.append(bdy)
-names.append('river')
-names.append('coast')
-names.append('state boundary')
+#handles.append(river)
+#handles.append(coast)
+#handles.append(bdy)
+#names.append('river')
+#names.append('coast')
+#names.append('state boundary')
 # create legend
-#ax5.legend(handles, names)
+ax5.legend(handles, names, fontsize=8, loc='best')
+
+#ax5.set_title('Legend',loc='left')
+
 print ("Save figure...")
-ax5.set_title('Legend',loc='left')
 plt.savefig("./%s.png" % evtcode, dpi=120)
 #plt.savefig("./%f.png" % dist, dpi=120)
 #print ("show...")
