@@ -131,3 +131,5 @@ dmypy.json
 *.png
 sta
 resif.sh
+figures/
+sites.csv
